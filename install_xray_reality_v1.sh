@@ -25,8 +25,8 @@ echo "3. 生成 Reality 参数..."
 UUID=$(cat /proc/sys/kernel/random/uuid)
 KEYS=$("$XRAY_DIR/xray" x25519)
 
-PRIVATE_KEY=$(echo "$KEYS" | grep -i "Private" | awk -F': ' '{print $2}' | tr -d '\r')
-PUBLIC_KEY=$(echo "$KEYS" | grep -i "Public" | awk -F': ' '{print $2}' | tr -d '\r')
+PRIVATE_KEY=$(echo "$KEYS" | sed -n 's/^PrivateKey:[[:space:]]*//p')
+PUBLIC_KEY=$(echo "$KEYS" | sed -n 's/^Password (PublicKey):[[:space:]]*//p')
 
 if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
   echo "错误：Reality 密钥生成失败。"
