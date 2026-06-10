@@ -30,7 +30,7 @@ chmod +x xray
 
 echo "3. 生成 Reality 参数..."
 UUID=$(cat /proc/sys/kernel/random/uuid)
-KEYS=$("$XRAY_DIR/xray" x25519)
+KEYS=$("$XRAY_DIR/xray" x25519 2>&1)
 
 PRIVATE_KEY=$(echo "$KEYS" | sed -n 's/^PrivateKey:[[:space:]]*//p')
 PUBLIC_KEY=$(echo "$KEYS" | sed -n 's/^Password (PublicKey):[[:space:]]*//p')
