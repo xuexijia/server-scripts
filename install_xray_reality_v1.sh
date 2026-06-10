@@ -7,6 +7,7 @@ CONFIG_DIR="/usr/local/Xray/config"
 INFO_FILE="/root/reality-info.txt"
 SNI="www.cloudflare.com"
 PORT="443"
+NODE_NAME="GCP-Reality"
 
 echo "1. 安装必要工具..."
 apt update -y
@@ -23,10 +24,21 @@ chmod +x xray
 echo "3. 生成 Reality 参数..."
 UUID=$(cat /proc/sys/kernel/random/uuid)
 KEYS=$("$XRAY_DIR/xray" x25519)
-PRIVATE_KEY=$(echo "$KEYS" | grep "Private key" | awk '{print $3}')
-PUBLIC_KEY=$(echo "$KEYS" | grep "Public key" | awk '{print $3}')
+
+PRIVATE_KEY=$(echo "$KEYS" | grep -i "Private" | awk -F': ' '{print $2}' | tr -d '\r')
+PUBLIC_KEY=$(echo "$KEYS" | grep -i "Public" | awk -F': ' '{print $2}' | tr -d '\r')
+
+if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
+  echo "错误：Reality 密钥生成失败。"
+  echo "Xray 输出如下："
+  echo "$KEYS"
+  exit 1
+fi
+
 SHORT_ID=$(openssl rand -hex 4)
 SERVER_IP=$(curl -s --max-time 5 https://api.ipify.org || echo "请手动填写服务器公网IP")
+
+VLESS_LINK="vless://${UUID}@${SERVER_IP}:${PORT}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${SNI}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp&headerType=none#${NODE_NAME}"
 
 echo "4. 写入 Xray 配置..."
 cat > "$CONFIG_DIR/config.json" <<CONFIG
@@ -92,12 +104,15 @@ LimitNOFILE=65535
 WantedBy=multi-user.target
 SERVICE
 
-echo "6. 启动 Xray..."
+echo "6. 测试配置..."
+"$XRAY_DIR/xray" -test -config "$CONFIG_DIR/config.json"
+
+echo "7. 启动 Xray..."
 systemctl daemon-reload
 systemctl enable xray
 systemctl restart xray
 
-echo "7. 保存连接信息..."
+echo "8. 保存连接信息..."
 cat > "$INFO_FILE" <<INFO
 Reality 节点信息
 ==============================
@@ -139,7 +154,7 @@ Reality
 $CONFIG_DIR/config.json
 
 查看服务状态:
-systemctl status xray --no-pager
+systemctl status xray --no-pager -l
 
 查看配置参数:
 cat $INFO_FILE
@@ -153,6 +168,11 @@ PublicKey: $PUBLIC_KEY
 ShortID: $SHORT_ID
 SNI: $SNI
 Flow: xtls-rprx-vision
+
+==============================
+VLESS 分享链接：
+$VLESS_LINK
+
 INFO
 
 echo ""
@@ -161,7 +181,7 @@ echo "=============================="
 cat "$INFO_FILE"
 echo "=============================="
 echo ""
-systemctl status xray --no-pager
+systemctl status xray --no-pager -l
 EOF
 
 chmod +x install_xray_reality.sh
